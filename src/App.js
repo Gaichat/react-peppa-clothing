@@ -1,23 +1,21 @@
 import React from 'react';
 import './App.css';
 import HomePage from './pages/homepage/homepage.component';
-import { Switch, Route } from 'react-router-dom';
+import { Switch, Route, Redirect } from 'react-router-dom';
 import ShopPage from './pages/shop/shop.component';
 import HatsPage from "./pages/hatspage/hatspage.component";
 import Header from "./components/header/header.component";
 import SignInAndSignUpPage from "./pages/sign-in-and-sign-up/sign-in-and-sign-up.component";
 import { auth, createUserProfileDocument } from "./firebase/firebase.util"
+import { connect } from 'react-redux';
+import { setCurrentUser } from './redux/user/user.action';
 
 class App extends React.Component {
-
-    constructor(props) {
-        super(props);
-        this.state = { currentUser: null }
-    }
 
     unsubscribeFroAuth = null;
 
     componentDidMount() {
+        const {setCurrentUser} = this.props;
         //async because request to our firestore
         /*
         Whenever we call the onAuthStateChanged() or onSnapshot() methods from our auth  library or referenceObject,
@@ -28,18 +26,15 @@ class App extends React.Component {
                 //createUserProfileDocument(user);
             if (userAuth) {
                 const userRef = await createUserProfileDocument(userAuth);
-
                 //
                 userRef.onSnapshot( snapshot => {
-                    this.setState({
-                        currentUser: ({
+                    setCurrentUser({
                             id: snapshot.id,
                             ...snapshot.data()
-                        })
-                    }, () => console.log(this.state)); ///setState is async we need to use a callback
+                    });
                 });
             }else{
-                this.setState({currentUser: userAuth});
+                setCurrentUser(userAuth);
             }
             }
         );
@@ -57,16 +52,24 @@ class App extends React.Component {
     render() {
         return (
             <div>
-                <Header currentUser={this.state.currentUser}/>
+                <Header/>
                 <Switch>
                     <Route exact path='/' component={HomePage}/>
                     <Route exact path='/hats' component={HatsPage}/>
                     <Route exact path='/shop' component={ShopPage}/>
-                    <Route exact path='/signin' component={SignInAndSignUpPage}/>
+                    <Route exact path='/signin' render={() => this.props.currentUser? (<Redirect to='/'/>): <SignInAndSignUpPage/>}/>
                 </Switch>
             </div>
         );
     }
 }
 
-export default App;
+const mapDispatchToProps = (dispatch) => ({
+    setCurrentUser: user => dispatch(setCurrentUser(user))
+});
+//from the state we destructu our userReducer
+const mapStateToPops = ({user}) => ({
+    currentUser: user.currentUser
+});
+
+export default connect(mapStateToPops, mapDispatchToProps)(App);
